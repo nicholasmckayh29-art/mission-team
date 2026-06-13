@@ -1,0 +1,37 @@
+node_modules/
+functions/node_modules/
+functions/lib/
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Firebase / Google local config (create from *.example files)
+.firebaserc
+google-services.json
+GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Internal / proprietary assets
+*.pdf
+~$*
+**/agent-transcripts/
+
+# OS & IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets & signing
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision

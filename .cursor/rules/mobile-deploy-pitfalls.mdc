@@ -1,0 +1,32 @@
+---
+description: Mission Team mobile deploy pitfalls — web hosting vs Android/iOS native
+globs: MISSION_TEAM/mobile/**,MISSION_TEAM/firebase.json,MISSION_TEAM/docs/**
+alwaysApply: false
+---
+
+# Mission Team deployment
+
+## Prototype status
+
+Use **local hosting** for the prototype (`expo start --web` / Expo Go). **Firebase Hosting is paused** — do not tell testers to use `mission-team-7cc99.web.app` unless explicitly re-enabling web deploy.
+
+## Web static export (Firebase Hosting) — easy to break
+
+Expo web export puts fonts under `dist/assets/node_modules/...`. Common failures:
+
+1. **`firebase.json` hosting `ignore` must NOT include `**/node_modules/**`** — it skips all font/icon assets.
+2. **Always run `npm run export:web`** — runs `scripts/inject-web-fonts.mjs` to embed `@font-face` in `index.html` before JS loads.
+3. **Verify deploy file count** — expect ~48 files in `mobile/dist`, not 4.
+4. **Square icons + wrong font = missing/broken `.ttf` delivery**, not stale UI code.
+
+Web-only code paths: `googleAuthWeb.ts`, `inject-web-fonts.mjs`, Firebase popup sign-in on web.
+
+## Android / iOS native builds — NOT the same problem
+
+Font/icon issues from Firebase Hosting **do not apply** to Android APK/AAB or iOS IPA:
+
+- Fonts and Ionicons ship **inside the app binary** via `useFonts()` / native asset bundling.
+- Do **not** require `inject-web-fonts.mjs` for Android.
+- Android needs: OAuth **Android client** (package + SHA-1), EAS/`expo run:android`, not `expo export --platform web`.
+
+See `docs/deployment-notes.md` for full checklists.

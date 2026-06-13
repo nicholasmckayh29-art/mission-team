@@ -1,0 +1,302 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function activeMember(communityId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid)).data.status == "active";
+    }
+
+    function communityMember(communityId) {
+      return get(/databases/$(database)/documents/communities/$(communityId)/members/$(request.auth.uid));
+    }
+
+    function isCommunityAdmin(communityId) {
+      return activeMember(communityId)
+        && communityMember(communityId).data.role in ["admin", "super_admin"];
+    }
+
+    function userEditableProfileFields() {
+      return [
+        "displayName",
+        "firstName",
+        "birthday",
+        "gender",
+        "photoURL",
+        "notificationSettings",
+        "updatedAt",
+        "lastActiveAt"
+      ];
+    }
+
+    function validContactStatus(status) {
+      return status in ["follow_up", "forgotten", "faithful", "backburner"];
+    }
+
+    function validStudyStatus(status) {
+      return status in ["none", "progressing", "paused", "stopped", "finished"];
+    }
+
+    function validCommunityRole(role) {
+      return role in ["member", "admin", "super_admin"];
+    }
+
+    function validMemberStatus(status) {
+      return status in ["active", "invited", "removed"];
+    }
+
+    function validCommunityGender(gender) {
+      return gender == null || gender in ["male", "female"];
+    }
+
+    function validCommunityRestrictions(restrictions) {
+      return restrictions is map
+        && (
+          !('gender' in restrictions)
+          || validCommunityGender(restrictions.gender)
+        )
+        && (
+          !('minimumAge' in restrictions)
+          || restrictions.minimumAge == null
+          || (
+            restrictions.minimumAge is number
+            && restrictions.minimumAge >= 1
+            && restrictions.minimumAge <= 120
+            && restrictions.minimumAge == math.floor(restrictions.minimumAge)
+          )
+        );
+    }
+
+    function validCommunityImageUrl(imageUrl, communityId) {
+      return imageUrl is string
+        && imageUrl.size() <= 200
+        && (
+          imageUrl == ""
+          || imageUrl == ("local:community:" + communityId)
+        );
+    }
+
+    match /users/{userId} {
+      allow read: if isSelf(userId);
+      allow create: if isSelf(userId)
+        && request.resource.data.keys().hasOnly(userEditableProfileFields().concat([
+          "email",
+          "onboardingComplete",
+          "accountStatus",
+          "createdAt"
+        ]));
+      allow update: if isSelf(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          userEditableProfileFields().concat(["onboardingComplete"])
+        );
+      allow delete: if false;
+
+      match /contacts/{contactId} {
+        allow read, delete: if isSelf(userId);
+        allow create, update: if isSelf(userId)
+          && validContactStatus(request.resource.data.status)
+          && validStudyStatus(request.resource.data.studyStatus)
+          && request.resource.data.keys().hasOnly([
+            "name",
+            "phone",
+            "email",
+            "notes",
+            "status",
+            "studyStatus",
+            "strikeCount",
+            "lastInteractionAt",
+            "nextReminderAt",
+            "createdAt",
+            "updatedAt"
+          ]);
+      }
+
+      match /communityMemberships/{communityId} {
+        allow read, delete: if isSelf(userId);
+        allow create: if isSelf(userId)
+          && exists(/databases/$(database)/documents/communities/$(communityId))
+          && request.resource.data.keys().hasOnly([
+            "name",
+            "communityCode",
+            "role",
+            "imageUrl",
+            "joinedAt"
+          ])
+          && validCommunityRole(request.resource.data.role)
+          && validCommunityImageUrl(request.resource.data.imageUrl, communityId)
+          && (
+            (
+              request.resource.data.role == "super_admin"
+              && get(/databases/$(database)/documents/communities/$(communityId)).data.createdBy == request.auth.uid
+            )
+            || (
+              request.resource.data.role == "member"
+              && get(/databases/$(database)/documents/communities/$(communityId)).data.communityCode
+                == request.resource.data.communityCode
+            )
+          );
+        allow update: if isSelf(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "imageUrl"])
+          && validCommunityImageUrl(request.resource.data.imageUrl, communityId);
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isSelf(userId);
+        allow create, delete: if false;
+        allow update: if isSelf(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["readAt"]);
+      }
+
+      match /pushTokens/{tokenId} {
+        allow read, delete: if isSelf(userId);
+        allow create, update: if isSelf(userId)
+          && request.resource.data.keys().hasOnly([
+            "token",
+            "platform",
+            "createdAt",
+            "updatedAt",
+            "lastSeenAt"
+          ]);
+      }
+    }
+
+    match /communityCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && validCommunityRestrictions(request.resource.data.restrictions)
+        && validCommunityImageUrl(
+          request.resource.data.imageUrl,
+          request.resource.data.communityId
+        )
+        && request.resource.data.keys().hasOnly([
+          "communityId",
+          "communityCode",
+          "name",
+          "createdBy",
+          "restrictions",
+          "imageUrl",
+          "createdAt"
+        ]);
+      allow update, delete: if false;
+    }
+
+    match /communities/{communityId} {
+      allow get: if activeMember(communityId);
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberCount == 1
+        && validCommunityRestrictions(request.resource.data.restrictions)
+        && validCommunityImageUrl(request.resource.data.imageUrl, communityId)
+        && request.resource.data.keys().hasOnly([
+          "name",
+          "description",
+          "communityCode",
+          "createdBy",
+          "memberCount",
+          "restrictions",
+          "imageUrl",
+          "createdAt",
+          "updatedAt"
+        ]);
+      allow update: if isCommunityAdmin(communityId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "name",
+          "description",
+          "memberCount",
+          "restrictions",
+          "imageUrl",
+          "updatedAt"
+        ])
+        && validCommunityRestrictions(request.resource.data.restrictions)
+        && validCommunityImageUrl(request.resource.data.imageUrl, communityId)
+        || (
+          signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["memberCount", "updatedAt"])
+          && request.resource.data.memberCount == resource.data.memberCount + 1
+        )
+        || (
+          signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["memberCount", "updatedAt"])
+          && request.resource.data.memberCount == resource.data.memberCount - 1
+        );
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if activeMember(communityId);
+        allow create: if signedIn()
+          && memberId == request.auth.uid
+          && validCommunityRole(request.resource.data.role)
+          && validMemberStatus(request.resource.data.status)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.keys().hasAll([
+            "userId",
+            "displayName",
+            "role",
+            "status",
+            "joinedAt"
+          ])
+          && (
+            request.resource.data.keys().hasOnly([
+              "userId",
+              "displayName",
+              "role",
+              "status",
+              "joinedAt"
+            ])
+            || request.resource.data.keys().hasOnly([
+              "userId",
+              "displayName",
+              "role",
+              "status",
+              "joinedAt",
+              "joinedViaCode"
+            ])
+          )
+          && (
+            (
+              request.resource.data.role == "super_admin"
+              && get(/databases/$(database)/documents/communities/$(communityId)).data.createdBy == request.auth.uid
+            )
+            || (
+              request.resource.data.role == "member"
+              && request.resource.data.joinedViaCode == get(/databases/$(database)/documents/communities/$(communityId)).data.communityCode
+            )
+          );
+        allow delete: if signedIn()
+          && memberId == request.auth.uid
+          && resource.data.role != "super_admin";
+        allow update: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read: if activeMember(communityId)
+          || (signedIn() && resource.data.targetUserId == request.auth.uid);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /faithPresence/{presenceId} {
+      allow read: if signedIn()
+        && resource.data.status == "active"
+        && resource.data.expiresAt > request.time
+        && request.auth.uid in resource.data.visibleToUserIds;
+      allow create, update, delete: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow read, write: if false;
+    }
+  }
+}
