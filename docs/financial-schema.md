@@ -1,13 +1,12 @@
 # Mission Team — financial schema (upkeep & distribution)
 
-**Purpose:** What the church organization pays to **run and ship** the app.  
-**Important:** The app is **free to members**. There is no in-app billing, subscriptions, or member fees planned.
+**Purpose:** Operating costs to run and ship the app. There is no in-app billing or member subscription.
 
 **Last updated:** June 2026 · Project: `your-firebase-project-id` · Stack: Expo + Firebase
 
 ---
 
-## One-page summary (for church leadership)
+## One-page summary
 
 | Who | What you pay | When | Typical cost |
 |-----|----------------|------|--------------|
@@ -255,6 +254,6 @@ Need hotfix JS updates without waiting for store review?
 
 ---
 
-## Short talk-track for brothers
+## Cost summary
 
-> “The app is free for everyone who uses it. The church pays the ‘utility bills’: Apple if we ship iPhone, Google once if we use the Play Store, and small cloud fees for login and data. Right now we’re on free tiers — about **zero dollars a month**. When we go to the App Store and turn on cloud photos and server reminders, expect roughly **one to four hundred dollars a year**, depending on how many brothers use it and how often we release updates. We’ll set spending caps so there are no surprises.”
+The app is free for end users. Operating costs are infrastructure only: Apple Developer (iOS distribution), Google Play (one-time, Android store), Firebase (usage-based), and Expo EAS (builds). Early internal use can stay on free tiers; store releases typically land around **$125–$400/year** depending on scale and release frequency. Set Firebase budget alerts before enabling paid features.

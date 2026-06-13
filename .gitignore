@@ -27,6 +27,12 @@ GoogleService-Info.plist
 .DS_Store
 .idea/
 .vscode/
+.cursor/
+
+# AI / editor agent config (local only)
+mobile/CLAUDE.md
+mobile/AGENTS.md
+mobile/.claude/
 
 # Secrets & signing
 *.jks
