@@ -41,3 +41,8 @@ mobile/.claude/
 *.key
 *.pem
 *.mobileprovision
+
+# Release binaries (use GitHub Releases, not git)
+*.apk
+*.aab
+*.ipa

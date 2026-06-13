@@ -38,6 +38,16 @@ npx expo start
 
 Android APK builds: [`docs/android-build.md`](docs/android-build.md)
 
+## Android install
+
+Preview APK (no Play Store required):
+
+**[Download v1.0.0](https://github.com/nicholasmckayh29-art/mission-team/releases/latest)**
+
+Open the APK in Chrome on an Android phone. Google sign-in requires an account on the project's OAuth test users list.
+
+New builds are published under [GitHub Releases](https://github.com/nicholasmckayh29-art/mission-team/releases) — not committed to the repository.
+
 ## Repository layout
 
 ```text
