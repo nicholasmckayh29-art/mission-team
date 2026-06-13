@@ -25,7 +25,7 @@ Portfolio snapshot — production Firebase credentials and internal docs are **n
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/mission-team.git
+git clone https://github.com/nicholasmckayh29-art/mission-team.git
 cd mission-team/mobile
 cp .env.example .env
 # Fill .env from your Firebase / Google Cloud console (see docs/firebase-setup.md)
